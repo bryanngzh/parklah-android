@@ -82,6 +82,10 @@ dependencies {
     // MapLibre
     implementation(libs.maplibre.android)
 
+    // Location
+    implementation(libs.play.services.location)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
