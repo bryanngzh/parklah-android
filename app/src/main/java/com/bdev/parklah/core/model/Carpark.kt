@@ -10,10 +10,10 @@ data class CarparkNearby(
     val lat: Double,
     val lon: Double,
     @SerializedName("distance_m")     val distanceM: Int,
-    @SerializedName("parking_system") val parkingSystem: String,
-    @SerializedName("lots_available") val lotsAvailable: Int,
-    @SerializedName("total_lots")     val totalLots: Int,
-    @SerializedName("snapshot_time")  val snapshotTime: String,
+    @SerializedName("parking_system") val parkingSystem: String?,
+    @SerializedName("lots_available") val lotsAvailable: Int?,
+    @SerializedName("total_lots")     val totalLots: Int?,
+    @SerializedName("snapshot_time")  val snapshotTime: String?,
 )
 
 /** Domain model — computed fields are resolved once by the use case. */
@@ -24,16 +24,16 @@ data class Carpark(
     val lat: Double,
     val lon: Double,
     val distanceM: Int,
-    val parkingSystem: String,
+    val parkingSystem: String?,
     val lotsAvailable: Int,
     val totalLots: Int,
-    val snapshotTime: String,
+    val snapshotTime: String?,
     val availabilityFraction: Float,
     val availabilityStatus: AvailabilityStatus,
     val formattedDistance: String,
 )
 
-enum class AvailabilityStatus { GOOD, LOW, FULL }
+enum class AvailabilityStatus { GOOD, LOW, FULL, UNKNOWN }
 
 data class NearbyMeta(
     val count: Int,

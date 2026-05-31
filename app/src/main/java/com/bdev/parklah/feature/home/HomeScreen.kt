@@ -276,6 +276,7 @@ private fun previewCarpark(
 ): Carpark {
     val fraction = if (total > 0) available.toFloat() / total else 0f
     val status = when {
+        total == 0      -> AvailabilityStatus.UNKNOWN
         fraction > 0.3f -> AvailabilityStatus.GOOD
         fraction > 0.1f -> AvailabilityStatus.LOW
         else            -> AvailabilityStatus.FULL
@@ -284,7 +285,7 @@ private fun previewCarpark(
     return Carpark(
         carparkCode = code, carparkName = name, dataSource = "hdb",
         lat = 1.39, lon = 103.89, distanceM = distanceM, parkingSystem = "COUPON",
-        lotsAvailable = available, totalLots = total, snapshotTime = "",
+        lotsAvailable = available, totalLots = total, snapshotTime = null,
         availabilityFraction = fraction, availabilityStatus = status, formattedDistance = distance,
     )
 }
@@ -507,14 +508,16 @@ private fun NearbySheetContent(
 @Composable
 private fun CarparkListItem(carpark: Carpark) {
     val statusColor = when (carpark.availabilityStatus) {
-        AvailabilityStatus.GOOD -> NightGood
-        AvailabilityStatus.LOW  -> NightPrimary
-        AvailabilityStatus.FULL -> NightWarn
+        AvailabilityStatus.GOOD    -> NightGood
+        AvailabilityStatus.LOW     -> NightPrimary
+        AvailabilityStatus.FULL    -> NightWarn
+        AvailabilityStatus.UNKNOWN -> NightInkDim
     }
     val statusSoft = when (carpark.availabilityStatus) {
-        AvailabilityStatus.GOOD -> NightGoodSoft
-        AvailabilityStatus.LOW  -> NightAccentSoft
-        AvailabilityStatus.FULL -> NightWarnSoft
+        AvailabilityStatus.GOOD    -> NightGoodSoft
+        AvailabilityStatus.LOW     -> NightAccentSoft
+        AvailabilityStatus.FULL    -> NightWarnSoft
+        AvailabilityStatus.UNKNOWN -> NightSurface
     }
 
     Surface(

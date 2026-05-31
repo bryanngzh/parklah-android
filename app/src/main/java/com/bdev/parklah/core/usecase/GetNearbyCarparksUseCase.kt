@@ -14,8 +14,11 @@ class GetNearbyCarparksUseCase @Inject constructor(
 }
 
 private fun CarparkNearby.toDomain(): Carpark {
-    val fraction = if (totalLots > 0) lotsAvailable.toFloat() / totalLots else 0f
+    val available = lotsAvailable ?: 0
+    val total = totalLots ?: 0
+    val fraction = if (total > 0) available.toFloat() / total else 0f
     val status = when {
+        total == 0      -> AvailabilityStatus.UNKNOWN   // no data (coupon / URA)
         fraction > 0.3f -> AvailabilityStatus.GOOD
         fraction > 0.1f -> AvailabilityStatus.LOW
         else            -> AvailabilityStatus.FULL
@@ -29,8 +32,8 @@ private fun CarparkNearby.toDomain(): Carpark {
         lon                  = lon,
         distanceM            = distanceM,
         parkingSystem        = parkingSystem,
-        lotsAvailable        = lotsAvailable,
-        totalLots            = totalLots,
+        lotsAvailable        = available,
+        totalLots            = total,
         snapshotTime         = snapshotTime,
         availabilityFraction = fraction,
         availabilityStatus   = status,
