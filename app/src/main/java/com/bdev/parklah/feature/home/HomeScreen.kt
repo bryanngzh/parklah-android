@@ -35,6 +35,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapLibreMapOptions
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.FillLayer
@@ -197,7 +198,8 @@ private fun ParkLahMapView(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
     val mapView = remember {
-        MapView(context).apply {
+        val options = MapLibreMapOptions.createFromAttributes(context).textureMode(true)
+        MapView(context, options).apply {
             getMapAsync { map ->
                 map.setStyle(MAP_STYLE) { style ->
                     // Radius ring (bottommost)

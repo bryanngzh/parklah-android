@@ -11,11 +11,10 @@ interface CarparkApi {
 
     @GET("v1/carparks/nearby")
     suspend fun getNearby(
-        @Query("lat")          lat: Double,
-        @Query("lon")          lon: Double,
-        @Query("radius")       radius: Int         = 600,
-        @Query("vehicle_type") vehicleType: String = "C",
-        @Query("limit")        limit: Int          = 20,
+        @Query("lat")    lat: Double,
+        @Query("lon")    lon: Double,
+        @Query("radius") radius: Int = 600,
+        @Query("limit")  limit: Int  = 20,
     ): NearbyResponse
 
     @GET("v1/carparks/{code}")
