@@ -14,6 +14,7 @@ val NightPrimary     = Color(0xFF5EE7D6) // signal teal
 val NightOnPrimary   = Color(0xFF06121A)
 val NightGood        = Color(0xFF7DF0A6) // lot green
 val NightWarn        = Color(0xFFFF7D7D) // full red
+val NightBlue        = Color(0xFF64B5F6) // unknown blue
 val NightAccentSoft  = Color(0x295EE7D6) // teal @ 16%
 val NightGoodSoft    = Color(0x297DF0A6) // green @ 16%
 val NightWarnSoft    = Color(0x29FF7D7D) // red @ 16%

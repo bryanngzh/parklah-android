@@ -14,15 +14,17 @@ class GetNearbyCarparksUseCase @Inject constructor(
 }
 
 private fun CarparkNearby.toDomain(): Carpark {
-    val available = lotsAvailable ?: 0
-    val total = totalLots ?: 0
+    val available = availability.sumOf { it.lotsAvailable }
+    val total = availability.sumOf { it.totalLots ?: 0 }
     val fraction = if (total > 0) available.toFloat() / total else 0f
     val status = when {
-        total == 0      -> AvailabilityStatus.UNKNOWN   // no data (coupon / URA)
-        fraction > 0.3f -> AvailabilityStatus.GOOD
-        fraction > 0.1f -> AvailabilityStatus.LOW
-        else            -> AvailabilityStatus.FULL
+        availability.isEmpty() -> AvailabilityStatus.UNKNOWN
+        total == 0             -> AvailabilityStatus.UNKNOWN
+        fraction > 0.3f        -> AvailabilityStatus.GOOD
+        fraction > 0.1f        -> AvailabilityStatus.LOW
+        else                   -> AvailabilityStatus.FULL
     }
+    val snapshotTime = availability.maxByOrNull { it.snapshotTime }?.snapshotTime
     val distance = if (distanceM >= 1000) "%.1f km".format(distanceM / 1000f) else "$distanceM m"
     return Carpark(
         carparkCode          = carparkCode,

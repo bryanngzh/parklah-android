@@ -13,11 +13,12 @@ data class CarparkRatesDto(
 
 data class ShortTermRateDto(
     @SerializedName("vehicle_type")    val vehicleType: String,
-    @SerializedName("day_type")        val dayType: String,       // "weekday" | "saturday" | "sunday" | "all"
+    @SerializedName("day_type")        val dayType: String,       // "weekday" | "saturday" | "sunday_ph" | "all"
     @SerializedName("start_time")      val startTime: String,     // "HH:mm"
     @SerializedName("end_time")        val endTime: String,       // "HH:mm"
     @SerializedName("rate_per_30min")  val ratePerHalfHour: Double,
     @SerializedName("min_duration")    val minDuration: String?,
+    @SerializedName("is_current")      val isCurrent: Boolean,
 )
 
 data class SeasonRateDto(

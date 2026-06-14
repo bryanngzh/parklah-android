@@ -2,6 +2,13 @@ package com.bdev.parklah.core.model
 
 import com.google.gson.annotations.SerializedName
 
+data class CarparkAvailabilityDto(
+    @SerializedName("vehicle_type")   val vehicleType: String,
+    @SerializedName("lots_available") val lotsAvailable: Int,
+    @SerializedName("total_lots")     val totalLots: Int?,
+    @SerializedName("snapshot_time")  val snapshotTime: String,
+)
+
 /** Raw API response — no business logic. */
 data class CarparkNearby(
     @SerializedName("carpark_code")   val carparkCode: String,
@@ -11,9 +18,7 @@ data class CarparkNearby(
     val lon: Double,
     @SerializedName("distance_m")     val distanceM: Int,
     @SerializedName("parking_system") val parkingSystem: String?,
-    @SerializedName("lots_available") val lotsAvailable: Int?,
-    @SerializedName("total_lots")     val totalLots: Int?,
-    @SerializedName("snapshot_time")  val snapshotTime: String?,
+    val availability: List<CarparkAvailabilityDto>,
 )
 
 /** Domain model — computed fields are resolved once by the use case. */
