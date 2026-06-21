@@ -3,6 +3,7 @@ package com.bdev.parklah.feature.home
 import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -83,6 +84,10 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
     val userLocation    by viewModel.userLocation.collectAsState()
     val mapCenter       by viewModel.mapCenter.collectAsState()
     val expandedCarpark by viewModel.expandedCarpark.collectAsState()
+    val savedEntries    by viewModel.savedEntries.collectAsState()
+    val savedCarparks   by viewModel.savedCarparks.collectAsState()
+    val isSavedLoading  by viewModel.isSavedLoading.collectAsState()
+    val savedCodes      = remember(savedEntries) { savedEntries.map { it.carparkCode }.toSet() }
 
     val context = LocalContext.current
     val density = context.resources.displayMetrics.density
@@ -267,6 +272,10 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                 expandedCarpark = expandedCarpark,
                 onCarparkToggled = viewModel::onCarparkToggled,
                 onVehicleSelected = viewModel::onVehicleSelected,
+                savedCodes = savedCodes,
+                onSaveToggled = viewModel::onSaveToggled,
+                savedCarparks = savedCarparks,
+                isSavedLoading = isSavedLoading,
             )
         }
     }
@@ -283,6 +292,7 @@ private fun ParkLahMapView(modifier: Modifier = Modifier, onMapReady: (MapLibreM
     val mapView = remember {
         MapView(context).apply {
             getMapAsync { map ->
+                map.uiSettings.isLogoEnabled = false
                 map.setStyle(MAP_STYLE) { style ->
                     // Bubble marker icons: green / red / blue
                     style.addImage(BUBBLE_GOOD,    bubbleBitmap(dm, 0xFF7DF0A6.toInt()))
@@ -316,7 +326,7 @@ private fun ParkLahMapView(modifier: Modifier = Modifier, onMapReady: (MapLibreM
                             textFont(arrayOf("Open Sans Bold", "Arial Unicode MS Bold")),
                             textSize(9f),
                             textAnchor("center"),
-                            textOffset(arrayOf(0f, -2.9f)),
+                            textOffset(arrayOf(0f, -3.4f)),
                             textAllowOverlap(true),
                         )
                     )
@@ -375,12 +385,16 @@ private fun SheetContent(
     expandedCarpark: ExpandedCarparkUiState,
     onCarparkToggled: (Carpark) -> Unit,
     onVehicleSelected: (String) -> Unit,
+    savedCodes: Set<String>,
+    onSaveToggled: (Carpark) -> Unit,
+    savedCarparks: List<Carpark>,
+    isSavedLoading: Boolean,
 ) {
     Column(Modifier.fillMaxWidth()) {
         SheetTabRow(selectedTab, onTabSelected)
         when (selectedTab) {
-            0 -> MapTab(carparks, isLoading, expandedCarpark, onCarparkToggled, onVehicleSelected)
-            1 -> SavedTab()
+            0 -> MapTab(carparks, isLoading, expandedCarpark, onCarparkToggled, onVehicleSelected, savedCodes, onSaveToggled)
+            1 -> SavedTab(savedCarparks, isSavedLoading, expandedCarpark, onCarparkToggled, onVehicleSelected, savedCodes, onSaveToggled)
             2 -> SettingsTab()
         }
     }
@@ -446,6 +460,8 @@ private fun MapTab(
     expandedCarpark: ExpandedCarparkUiState,
     onCarparkToggled: (Carpark) -> Unit,
     onVehicleSelected: (String) -> Unit,
+    savedCodes: Set<String>,
+    onSaveToggled: (Carpark) -> Unit,
 ) {
     val listState = rememberLazyListState()
 
@@ -508,8 +524,10 @@ private fun MapTab(
                 CarparkItem(
                     carpark = carpark,
                     expandedCarpark = expandedCarpark,
+                    isSaved = carpark.carparkCode in savedCodes,
                     onToggle = onCarparkToggled,
                     onVehicleSelected = onVehicleSelected,
+                    onSaveToggled = { onSaveToggled(carpark) },
                 )
             }
         }
@@ -520,8 +538,10 @@ private fun MapTab(
 private fun CarparkItem(
     carpark: Carpark,
     expandedCarpark: ExpandedCarparkUiState,
+    isSaved: Boolean,
     onToggle: (Carpark) -> Unit,
     onVehicleSelected: (String) -> Unit,
+    onSaveToggled: () -> Unit,
 ) {
     val isLoadingThis = expandedCarpark is ExpandedCarparkUiState.Loading &&
             expandedCarpark.carpark.carparkCode == carpark.carparkCode
@@ -642,7 +662,9 @@ private fun CarparkItem(
                             rates = successState.rates,
                             selectedVehicle = successState.selectedVehicle,
                             carpark = carpark,
+                            isSaved = isSaved,
                             onVehicleSelected = onVehicleSelected,
+                            onSaveToggled = onSaveToggled,
                         )
                     }
                 }
@@ -658,7 +680,9 @@ private fun InlineRates(
     rates: CarparkRatesDto,
     selectedVehicle: String,
     carpark: Carpark,
+    isSaved: Boolean,
     onVehicleSelected: (String) -> Unit,
+    onSaveToggled: () -> Unit,
 ) {
     val context = LocalContext.current
     val vehicleTypes = rates.shortTerm.map { it.vehicleType }.distinct()
@@ -832,15 +856,22 @@ private fun InlineRates(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             OutlinedButton(
-                onClick = {},
+                onClick = onSaveToggled,
                 modifier = Modifier.weight(1f).height(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, NightBorder),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = NightInkDim),
+                border = BorderStroke(1.dp, if (isSaved) NightPrimary else NightBorder),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = if (isSaved) NightPrimary else NightInkDim,
+                ),
             ) {
-                Icon(Icons.Filled.Star, null, modifier = Modifier.size(15.dp))
+                Icon(Icons.Filled.Bookmark, null, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Save", fontFamily = GeistFontFamily, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(
+                    if (isSaved) "Saved" else "Save",
+                    fontFamily = GeistFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                )
             }
             Button(
                 onClick = {
@@ -872,49 +903,172 @@ private fun InlineRates(
 // ── Placeholder tabs ──────────────────────────────────────────────────────────
 
 @Composable
-private fun SavedTab() {
-    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Filled.Star, null, tint = NightInkFaint, modifier = Modifier.size(32.dp))
-            Text("No saved carparks yet", color = NightInkFaint, fontFamily = GeistFontFamily, fontSize = 14.sp)
+private fun SavedTab(
+    savedCarparks: List<Carpark>,
+    isLoading: Boolean,
+    expandedCarpark: ExpandedCarparkUiState,
+    onCarparkToggled: (Carpark) -> Unit,
+    onVehicleSelected: (String) -> Unit,
+    savedCodes: Set<String>,
+    onSaveToggled: (Carpark) -> Unit,
+) {
+    if (isLoading && savedCarparks.isEmpty()) {
+        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = NightPrimary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+        }
+        return
+    }
+
+    if (savedCarparks.isEmpty()) {
+        Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.Bookmark, null, tint = NightInkFaint, modifier = Modifier.size(32.dp))
+                Text("No saved carparks yet", color = NightInkFaint, fontFamily = GeistFontFamily, fontSize = 14.sp)
+            }
+        }
+        return
+    }
+
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(expandedCarpark) {
+        val targetCode = when (expandedCarpark) {
+            is ExpandedCarparkUiState.Loading -> expandedCarpark.carpark.carparkCode
+            is ExpandedCarparkUiState.Success -> expandedCarpark.carpark.carparkCode
+            else -> return@LaunchedEffect
+        }
+        val index = savedCarparks.indexOfFirst { it.carparkCode == targetCode }
+        if (index >= 0) listState.animateScrollToItem(index + 1)
+    }
+
+    LazyColumn(state = listState, modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 24.dp)) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "${savedCarparks.size} saved",
+                    color = NightInkDim,
+                    fontFamily = GeistFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp,
+                )
+                if (isLoading) {
+                    CircularProgressIndicator(color = NightPrimary, modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
+                }
+            }
+            HorizontalDivider(color = NightBorder, thickness = 0.5.dp)
+        }
+        items(savedCarparks, key = { it.carparkCode }) { carpark ->
+            CarparkItem(
+                carpark = carpark,
+                expandedCarpark = expandedCarpark,
+                isSaved = carpark.carparkCode in savedCodes,
+                onToggle = onCarparkToggled,
+                onVehicleSelected = onVehicleSelected,
+                onSaveToggled = { onSaveToggled(carpark) },
+            )
         }
     }
 }
 
 @Composable
 private fun SettingsTab() {
-    Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Filled.Settings, null, tint = NightInkFaint, modifier = Modifier.size(32.dp))
-            Text("Settings coming soon", color = NightInkFaint, fontFamily = GeistFontFamily, fontSize = 14.sp)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+    ) {
+        Text(
+            text = "About",
+            color = NightInkFaint,
+            fontFamily = GeistFontFamily,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 11.sp,
+            letterSpacing = 0.8.sp,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+        )
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = NightSurfaceAlt,
+            border = BorderStroke(1.dp, NightBorder),
+        ) {
+            Column {
+                SettingsRow(label = "Version", value = com.bdev.parklah.BuildConfig.VERSION_NAME)
+                HorizontalDivider(color = NightBorder, thickness = 0.5.dp)
+                SettingsRow(label = "Build", value = com.bdev.parklah.BuildConfig.VERSION_CODE.toString())
+            }
         }
+    }
+}
+
+@Composable
+private fun SettingsRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = NightInk, fontFamily = GeistFontFamily, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        Text(value, color = NightInkDim, fontFamily = GeistMonoFontFamily, fontSize = 13.sp)
     }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 private fun bubbleBitmap(dm: Float, color: Int): Bitmap {
-    val r    = (18 * dm).toInt()
-    val tail = (8 * dm).toInt()
-    val pad  = (2 * dm).toInt()
-    val w    = r * 2 + pad * 2
-    val h    = r * 2 + tail + pad
-    val bmp  = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val c    = AndroidCanvas(bmp)
-    val p    = Paint(Paint.ANTI_ALIAS_FLAG)
-    val cx   = w / 2f
-    val cy   = r.toFloat() + pad
+    val r      = 18f * dm
+    val stroke = 2.5f * dm   // dark border thickness
+    val glowR  = 9f * dm     // glow blur radius
+    val tail   = 10f * dm
+    val pad    = glowR + stroke
 
+    val rOuter = r + stroke
+    val w      = ((rOuter + pad) * 2).toInt()
+    val h      = (rOuter + pad + rOuter + tail).toInt()
+    val cx     = w / 2f
+    val cy     = rOuter + pad
+
+    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    val cv  = AndroidCanvas(bmp)
+    val p   = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    // Outer glow (blurred halo around the border edge)
     p.color = color
-    p.style = Paint.Style.FILL
-    c.drawCircle(cx, cy, r.toFloat(), p)
+    p.maskFilter = BlurMaskFilter(glowR, BlurMaskFilter.Blur.NORMAL)
+    cv.drawCircle(cx, cy, rOuter, p)
+    p.maskFilter = null
 
-    val path = Path()
-    path.moveTo(cx - 6 * dm, cy + r - 3 * dm)
-    path.lineTo(cx + 6 * dm, cy + r - 3 * dm)
-    path.lineTo(cx, h.toFloat())
-    path.close()
-    c.drawPath(path, p)
+    // Dark border circle
+    p.color = 0xFF0A0E18.toInt()
+    cv.drawCircle(cx, cy, rOuter, p)
+
+    // Dark border tail
+    val blackHalf = 6f * dm + stroke
+    val blackTail = Path()
+    blackTail.moveTo(cx - blackHalf, cy + rOuter - stroke)
+    blackTail.lineTo(cx + blackHalf, cy + rOuter - stroke)
+    blackTail.lineTo(cx, h.toFloat())
+    blackTail.close()
+    cv.drawPath(blackTail, p)
+
+    // Colored fill circle
+    p.color = color
+    cv.drawCircle(cx, cy, r, p)
+
+    // Colored fill tail
+    val colorHalf = 6f * dm
+    val colorTail = Path()
+    colorTail.moveTo(cx - colorHalf, cy + r)
+    colorTail.lineTo(cx + colorHalf, cy + r)
+    colorTail.lineTo(cx, h.toFloat() - stroke)
+    colorTail.close()
+    cv.drawPath(colorTail, p)
 
     return bmp
 }

@@ -1,8 +1,12 @@
 package com.bdev.parklah.core.network
 
+import com.bdev.parklah.core.model.BatchRequest
+import com.bdev.parklah.core.model.BatchResponse
 import com.bdev.parklah.core.model.CarparkRatesResponse
 import com.bdev.parklah.core.model.NearbyResponse
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -15,6 +19,13 @@ interface CarparkApi {
         @Query("radius") radius: Int = 600,
         @Query("limit")  limit: Int  = 50,
     ): NearbyResponse
+
+    @POST("v1/carparks/batch")
+    suspend fun getBatch(
+        @Query("lat")  lat: Double,
+        @Query("lon")  lon: Double,
+        @Body          body: BatchRequest,
+    ): BatchResponse
 
     @GET("v1/carparks/{code}/rates")
     suspend fun getRates(

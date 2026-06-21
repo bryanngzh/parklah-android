@@ -40,6 +40,19 @@ data class Carpark(
 
 enum class AvailabilityStatus { GOOD, LOW, FULL, UNKNOWN }
 
+data class BatchRequest(
+    val codes: List<String>,
+)
+
+data class BatchMeta(
+    val count: Int,
+)
+
+data class BatchResponse(
+    val data: List<CarparkNearby>,
+    val meta: BatchMeta,
+)
+
 data class NearbyMeta(
     val count: Int,
     @SerializedName("radius_m")

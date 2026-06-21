@@ -13,7 +13,7 @@ class GetNearbyCarparksUseCase @Inject constructor(
         repository.getNearby(lat, lon).map { it.toDomain() }
 }
 
-private fun CarparkNearby.toDomain(): Carpark {
+internal fun CarparkNearby.toDomain(): Carpark {
     val available = availability.sumOf { it.lotsAvailable }
     val total = availability.sumOf { it.totalLots ?: 0 }
     val fraction = if (total > 0) available.toFloat() / total else 0f

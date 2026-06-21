@@ -5,6 +5,9 @@ import android.content.Context
 import android.os.Looper
 import com.bdev.parklah.core.model.Carpark
 import com.bdev.parklah.core.model.CarparkRatesDto
+import com.bdev.parklah.core.model.SavedCarparkEntry
+import com.bdev.parklah.core.repository.SavedCarparksRepository
+import com.bdev.parklah.core.usecase.GetBatchCarparksUseCase
 import com.bdev.parklah.core.usecase.GetCarparkRatesUseCase
 import com.bdev.parklah.core.usecase.GetNearbyCarparksUseCase
 import com.google.android.gms.location.LocationCallback
@@ -16,8 +19,12 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import androidx.lifecycle.ViewModel
@@ -41,6 +48,8 @@ private const val DEFAULT_LON = 103.8198
 class HomeViewModel @Inject constructor(
     private val getNearbyCarparks: GetNearbyCarparksUseCase,
     private val getCarparkRates: GetCarparkRatesUseCase,
+    private val getBatchCarparks: GetBatchCarparksUseCase,
+    private val savedCarparksRepo: SavedCarparksRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
@@ -61,6 +70,30 @@ class HomeViewModel @Inject constructor(
 
     private val _expandedCarpark = MutableStateFlow<ExpandedCarparkUiState>(ExpandedCarparkUiState.None)
     val expandedCarpark: StateFlow<ExpandedCarparkUiState> = _expandedCarpark.asStateFlow()
+
+    val savedEntries: StateFlow<List<SavedCarparkEntry>> = savedCarparksRepo.entries
+
+    private val _isSavedLoading = MutableStateFlow(false)
+    val isSavedLoading: StateFlow<Boolean> = _isSavedLoading.asStateFlow()
+
+    // Re-fetch from batch API whenever saved entries or map center changes
+    val savedCarparks: StateFlow<List<Carpark>> = combine(
+        savedCarparksRepo.entries, _mapCenter,
+    ) { entries, center -> Pair(entries, center) }
+        .transformLatest { (entries, center) ->
+            if (entries.isEmpty()) { emit(emptyList()); return@transformLatest }
+            val lat = center?.first ?: DEFAULT_LAT
+            val lon = center?.second ?: DEFAULT_LON
+            _isSavedLoading.value = true
+            try {
+                emit(getBatchCarparks(entries.map { it.carparkCode }, lat, lon))
+            } catch (_: Exception) {
+                // keep previous results on error
+            } finally {
+                _isSavedLoading.value = false
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     @SuppressLint("MissingPermission")
     fun onLocationPermissionGranted() {
@@ -131,6 +164,12 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    fun onSaveToggled(carpark: Carpark) = savedCarparksRepo.toggle(carpark)
+
+    fun onRemoveSaved(code: String) = savedCarparksRepo.remove(code)
+
+    fun isSaved(code: String) = savedCarparksRepo.isSaved(code)
 
     fun onCarparkCodeTapped(code: String) {
         val carpark = _carparks.value.find { it.carparkCode == code } ?: return
